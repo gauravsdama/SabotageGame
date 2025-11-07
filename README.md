@@ -3,7 +3,6 @@
 
 **Hidden Saboteur** is a Flask-based multiplayer game where players join a game room, receive secret roles, and complete tasks while one player (the Saboteur) works to disrupt the team. After task completion, players vote on who they believe is the Saboteur, and the final results are displayed.
 
-> **Disclaimer:** This project is intended for educational and entertainment purposes only. Use responsibly and only with the consent of all participants.
 
 ## Overview
 

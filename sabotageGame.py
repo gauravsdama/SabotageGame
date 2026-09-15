@@ -1,11 +1,11 @@
 import os
-import random
+import secrets
 import string
 
-from flask import Flask, render_template_string, request, redirect, url_for, session
+from flask import Flask, redirect, render_template_string, request, session, url_for
 
 app = Flask(__name__)
-app.secret_key = os.getenv("SECRET_KEY", "dev-secret-key-change-me")
+app.secret_key = os.getenv("SECRET_KEY") or secrets.token_hex(32)
 
 # GAMES will store all ongoing games in memory:
 # GAMES[game_code] = {
@@ -294,14 +294,8 @@ HOME_PAGE = """
 
         <section class="hero-grid">
             <div>
-                <p class="eyebrow">Social deduction</p>
                 <h1>Find the hidden saboteur before the team falls apart.</h1>
                 <p>Create a room, share the code, assign secret roles, run tasks, and vote before the saboteur gets away with the points.</p>
-                <div class="status-row">
-                    <span class="pill red">Secret roles</span>
-                    <span class="pill">Live lobby</span>
-                    <span class="pill">Final vote</span>
-                </div>
             </div>
 
             <div class="panel form-stack">
@@ -317,7 +311,7 @@ HOME_PAGE = """
                     <h2>Join room</h2>
                     <div>
                         <label for="game_code">Game code</label>
-                        <input id="game_code" type="text" name="game_code" placeholder="A1B2C3" required>
+                        <input id="game_code" type="text" name="game_code" maxlength="6" placeholder="A1B2C3" required>
                     </div>
                     <button type="submit">Join Game</button>
                 </form>
@@ -349,14 +343,13 @@ JOIN_PAGE = """
 
         <section class="content-grid">
             <div>
-                <p class="eyebrow">Join room</p>
                 <h1>Enter your player name.</h1>
                 <p>You are joining room <strong>{{ game_code }}</strong>. Your role stays hidden until the game starts.</p>
             </div>
             <form class="panel form-stack" action="{{ url_for('join_game_post', game_code=game_code) }}" method="POST">
                 <div>
                     <label for="player_name">Player name</label>
-                    <input id="player_name" type="text" name="player_name" placeholder="Gaurav" required>
+                    <input id="player_name" type="text" name="player_name" maxlength="40" placeholder="Gaurav" required>
                 </div>
                 <button type="submit" class="primary">Join Room</button>
             </form>
@@ -388,7 +381,6 @@ LOBBY_PAGE = """
 
         <section class="content-grid">
             <div>
-                <p class="eyebrow">Lobby</p>
                 <h1>Room {{ game_code }}</h1>
                 <p>Share the room code, wait for players, then start once everyone is ready.</p>
                 <div class="code-card" aria-label="Game code">
@@ -414,7 +406,7 @@ LOBBY_PAGE = """
                     <p>No players have joined yet.</p>
                 {% endif %}
 
-                {% if not started %}
+                {% if not started and is_host %}
                     <div class="divider"></div>
                     <form method="POST" action="{{ url_for('start_game', game_code=game_code) }}">
                         <button type="submit" class="primary">Start Game</button>
@@ -449,7 +441,6 @@ DASHBOARD_PAGE = """
 
         <section class="content-grid">
             <div>
-                <p class="eyebrow">Player dashboard</p>
                 <h1>Hello, {{ player_name }}</h1>
                 <p>Room <strong>{{ game_code }}</strong> is your current game. Keep your role private and watch the task order.</p>
                 <div class="status-row">
@@ -563,7 +554,6 @@ RESULT_PAGE = """
 
         <section class="content-grid">
             <div>
-                <p class="eyebrow">Results</p>
                 {% if saboteur_out %}
                     <h1>Innocents win.</h1>
                     <p>The group identified the saboteur before they could keep the points.</p>
@@ -596,17 +586,31 @@ RESULT_PAGE = """
 </html>
 """
 
+
 # --------------------------------------
 # Helper Functions
 # --------------------------------------
 def generate_game_code(length=6):
     """Generate a random game code of letters/numbers."""
     chars = string.ascii_uppercase + string.digits
-    return ''.join(random.choice(chars) for _ in range(length))
+    for _ in range(100):
+        game_code = "".join(secrets.choice(chars) for _ in range(length))
+        if game_code not in GAMES:
+            return game_code
+    raise RuntimeError("Could not allocate a unique game code")
+
 
 def generate_player_id():
     """Generate a unique player ID."""
-    return ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(10))
+    return secrets.token_urlsafe(18)
+
+
+def session_player_for(game_code):
+    """Return the current session's player ID only for its active room."""
+    if session.get("game_code") != game_code:
+        return None
+    return session.get("player_id")
+
 
 def get_current_game():
     """Get the game dictionary for the user's session."""
@@ -615,9 +619,11 @@ def get_current_game():
         return None
     return GAMES[game_code]
 
+
 def get_my_player_id():
     """Get the player's unique ID from session."""
     return session.get("player_id")
+
 
 # --------------------------------------
 # ROUTES
@@ -626,12 +632,14 @@ def get_my_player_id():
 def home():
     return render_template_string(HOME_PAGE)
 
+
 @app.route("/create_game", methods=["POST"])
 def create_game():
-    """Create a new game and redirect to the lobby."""
+    """Create a new game and send its creator through the player join step."""
     game_code = generate_game_code()
     GAMES[game_code] = {
         "players": {},
+        "host_id": None,
         "started": False,
         "saboteur_id": None,
         "sabotages": 0,
@@ -641,25 +649,34 @@ def create_game():
         "num_tasks": 0,
         "votes": {},
         "voting_active": False,
-        "finished": False
+        "finished": False,
+        "saboteur_out": None,
     }
-    return redirect(url_for("lobby", game_code=game_code))
+    session.clear()
+    session["pending_host_game_code"] = game_code
+    return redirect(url_for("join_game", game_code=game_code))
+
 
 @app.route("/join_game", methods=["GET"])
 def join_game():
     """Enter a game code to join."""
-    game_code = request.args.get("game_code")
+    game_code = request.args.get("game_code", "").strip().upper()
     if not game_code or game_code not in GAMES:
         return redirect(url_for("home"))
+    if GAMES[game_code]["started"]:
+        return redirect(url_for("home"))
     return render_template_string(JOIN_PAGE, game_code=game_code)
+
 
 @app.route("/join_game/<game_code>", methods=["POST"])
 def join_game_post(game_code):
     """User enters name to join the game."""
     if game_code not in GAMES:
         return redirect(url_for("home"))
+    if GAMES[game_code]["started"]:
+        return redirect(url_for("home"))
 
-    player_name = request.form.get("player_name")
+    player_name = request.form.get("player_name", "").strip()[:40]
     if not player_name:
         return redirect(url_for("join_game", game_code=game_code))
 
@@ -668,12 +685,15 @@ def join_game_post(game_code):
         "name": player_name,
         "role": None,
         "has_seen_role": False,
-        "has_voted": False
+        "has_voted": False,
     }
     session["game_code"] = game_code
     session["player_id"] = pid
+    if session.pop("pending_host_game_code", None) == game_code:
+        GAMES[game_code]["host_id"] = pid
 
     return redirect(url_for("lobby", game_code=game_code))
+
 
 @app.route("/lobby/<game_code>")
 def lobby(game_code):
@@ -684,25 +704,30 @@ def lobby(game_code):
     game = GAMES[game_code]
     players = game["players"]
     started = game["started"]
+    pid = session_player_for(game_code)
 
     return render_template_string(
         LOBBY_PAGE,
         game_code=game_code,
         players=players,
-        started=started
+        started=started,
+        is_host=pid is not None and pid == game["host_id"],
     )
+
 
 @app.route("/start_game/<game_code>", methods=["POST"])
 def start_game(game_code):
     """Host starts the game:
-       - 1 saboteur
-       - tasks assigned to half the players
-       - random order
+    - 1 saboteur
+    - tasks assigned to half the players
+    - random order
     """
     if game_code not in GAMES:
         return redirect(url_for("home"))
 
     game = GAMES[game_code]
+    if session_player_for(game_code) != game["host_id"]:
+        return redirect(url_for("lobby", game_code=game_code))
     if game["started"]:
         return redirect(url_for("lobby", game_code=game_code))
 
@@ -712,7 +737,7 @@ def start_game(game_code):
         return redirect(url_for("lobby", game_code=game_code))
 
     # Pick saboteur
-    sab_id = random.choice(player_ids)
+    sab_id = secrets.choice(player_ids)
     game["saboteur_id"] = sab_id
 
     # Assign roles
@@ -724,8 +749,8 @@ def start_game(game_code):
 
     # Assign tasks to half the players (rounded down)
     num_tasks = len(player_ids) // 2
-    assigned = random.sample(player_ids, num_tasks)
-    random.shuffle(assigned)
+    assigned = list(secrets.SystemRandom().sample(player_ids, num_tasks))
+    secrets.SystemRandom().shuffle(assigned)
 
     game["num_tasks"] = num_tasks
     game["assigned_order"] = assigned
@@ -735,18 +760,21 @@ def start_game(game_code):
     game["votes"] = {}
     game["voting_active"] = False
     game["finished"] = False
+    game["saboteur_out"] = None
 
     game["started"] = True
     return redirect(url_for("lobby", game_code=game_code))
 
+
 @app.route("/dashboard")
 def player_dashboard():
     """Personal dashboard for the current player."""
+    game_code = session.get("game_code")
     game = get_current_game()
-    if not game:
+    if not game or not game_code:
         return redirect(url_for("home"))
 
-    pid = get_my_player_id()
+    pid = session_player_for(game_code)
     if pid not in game["players"]:
         return redirect(url_for("home"))
 
@@ -774,8 +802,9 @@ def player_dashboard():
         voting_active=game["voting_active"],
         has_voted=(pid in game["votes"]),
         players=game["players"],
-        my_pid=pid
+        my_pid=pid,
     )
+
 
 @app.route("/reveal_role/<game_code>", methods=["POST"])
 def reveal_role(game_code):
@@ -784,12 +813,13 @@ def reveal_role(game_code):
         return redirect(url_for("home"))
     game = GAMES[game_code]
 
-    pid = get_my_player_id()
+    pid = session_player_for(game_code)
     if pid not in game["players"]:
         return redirect(url_for("home"))
 
     game["players"][pid]["has_seen_role"] = True
     return redirect(url_for("player_dashboard"))
+
 
 @app.route("/do_task/<game_code>", methods=["POST"])
 def do_task(game_code):
@@ -798,7 +828,7 @@ def do_task(game_code):
         return redirect(url_for("home"))
     game = GAMES[game_code]
 
-    pid = get_my_player_id()
+    pid = session_player_for(game_code)
     if pid not in game["players"]:
         return redirect(url_for("home"))
 
@@ -812,6 +842,8 @@ def do_task(game_code):
         return redirect(url_for("player_dashboard"))
 
     action = request.form.get("action", "complete")
+    if action not in {"complete", "sabotage"}:
+        return redirect(url_for("player_dashboard"))
 
     # Only a saboteur can sabotage
     if action == "sabotage" and game["players"][pid]["role"] == "Saboteur":
@@ -821,6 +853,7 @@ def do_task(game_code):
     game["task_index"] += 1
 
     return redirect(url_for("player_dashboard"))
+
 
 @app.route("/cast_vote/<game_code>", methods=["POST"])
 def cast_vote(game_code):
@@ -833,7 +866,7 @@ def cast_vote(game_code):
         # No active voting or game ended
         return redirect(url_for("player_dashboard"))
 
-    pid = get_my_player_id()
+    pid = session_player_for(game_code)
     if pid not in game["players"]:
         return redirect(url_for("home"))
 
@@ -843,21 +876,14 @@ def cast_vote(game_code):
 
     # Check if all players have voted
     if len(game["votes"]) == len(game["players"]):
-        # Tally & finalize game
-        return redirect(url_for("finalize_vote", game_code=game_code))
+        finalize_vote(game)
+        return redirect(url_for("display_results", game_code=game_code))
 
     return redirect(url_for("player_dashboard"))
 
-@app.route("/finalize_vote/<game_code>")
-def finalize_vote(game_code):
-    """Once everyone voted, see if the saboteur is majority. Then finalize."""
-    if game_code not in GAMES:
-        return redirect(url_for("home"))
 
-    game = GAMES[game_code]
-    if game["finished"]:
-        return redirect(url_for("player_dashboard"))
-
+def finalize_vote(game):
+    """Finalize a complete vote as part of the last voter's POST request."""
     sab_id = game["saboteur_id"]
     votes = game["votes"]
     # Count how many are for sab
@@ -865,7 +891,7 @@ def finalize_vote(game_code):
     majority_needed = (len(game["players"]) // 2) + 1
 
     # If sab is voted out, saboteur_out = True => sab has 0 points
-    saboteur_out = (vote_count_for_sab >= majority_needed)
+    saboteur_out = vote_count_for_sab >= majority_needed
 
     if saboteur_out:
         # sab out => no points
@@ -876,7 +902,8 @@ def finalize_vote(game_code):
 
     # Mark game finished
     game["finished"] = True
-    return redirect(url_for("display_results", game_code=game_code, saboteur_out="1" if saboteur_out else "0"))
+    game["saboteur_out"] = saboteur_out
+
 
 @app.route("/results/<game_code>")
 def display_results(game_code):
@@ -885,8 +912,9 @@ def display_results(game_code):
         return redirect(url_for("home"))
 
     game = GAMES[game_code]
-    sab_out_flag = request.args.get("saboteur_out", "0")
-    saboteur_out = (sab_out_flag == "1")
+    if not game["finished"] or session_player_for(game_code) not in game["players"]:
+        return redirect(url_for("player_dashboard"))
+    saboteur_out = game["saboteur_out"]
 
     sab_id = game["saboteur_id"]
     sab_name = game["players"][sab_id]["name"]
@@ -903,17 +931,18 @@ def display_results(game_code):
         sab_points=sab_points,
         saboteur_out=saboteur_out,
         votes=votes,
-        players=players
+        players=players,
     )
+
 
 @app.route("/show_results/<game_code>")
 def show_results_redirect(game_code):
     """Convenience redirect to final results."""
     return redirect(url_for("display_results", game_code=game_code))
 
+
 # --------------------------------------
 # Run the server
 # --------------------------------------
 if __name__ == "__main__":
-    # Host on 0.0.0.0 so others on LAN can join.
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host=os.getenv("SABOTAGE_HOST", "127.0.0.1"), port=5000, debug=False)

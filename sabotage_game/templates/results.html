@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Hidden Saboteur Results{% endblock %}
+{% block nav %}<a class="nav-link" href="{{ url_for('home') }}">New Game</a>{% endblock %}
+{% block content %}
+<section class="content-grid">
+    <div>
+        {% if game.saboteur_out %}
+            <h1>Innocents win.</h1><p>The group identified the saboteur before they could keep the points.</p>
+        {% else %}
+            <h1>The saboteur survives.</h1><p>The final vote missed the saboteur, so the sabotage points stand.</p>
+        {% endif %}
+        <div class="status-row">
+            <span class="pill red">Saboteur: {{ game.players[game.saboteur_id].name }}</span>
+            <span class="pill">{{ game.sabotages }} sabotages</span>
+            <span class="pill gold">{{ game.saboteur_points }} points</span>
+        </div>
+    </div>
+    <div class="panel">
+        <h2>Final votes</h2>
+        {% if game.votes %}
+        <ul>{% for voter_id, target_id in game.votes.items() %}<li>{{ game.players[voter_id].name }} voted for {{ game.players[target_id].name }}</li>{% endfor %}</ul>
+        {% else %}<p>No votes were recorded.</p>{% endif %}
+    </div>
+</section>
+{% endblock %}

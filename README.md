@@ -26,14 +26,23 @@ process, not an internet-hosted or production multiplayer service.
 4. Half of the players, rounded down, receive a turn in random order. A saboteur assigned a turn may record a sabotage instead of completing it.
 5. After the task turns, every player votes. A strict majority must identify the saboteur.
 
-The browser pages refresh periodically to show shared state changes.
+Waiting pages refresh periodically to show shared state changes. Pages with an
+available role, task, start, or vote action do not refresh underneath the player.
+
+## Local limits
+
+The process keeps at most 64 rooms, 16 players per room, unfinished rooms for
+six hours, and finished rooms for one hour. These defaults can be adjusted with
+`SABOTAGE_MAX_ROOMS`, `SABOTAGE_MAX_PLAYERS`,
+`SABOTAGE_ROOM_TTL_SECONDS`, and `SABOTAGE_FINISHED_TTL_SECONDS`.
 
 ## Current limitations
 
-- State is an in-memory global dictionary; there is no database, recovery, or multi-process support.
+- State is held by a bounded in-memory store; there is no database, recovery, or multi-process support.
 - The app uses Flask's development server. Do not expose it to the public internet.
 - The default session secret is generated at process start, so browser sessions end when the server restarts. Set `SECRET_KEY` only when stable local sessions are needed.
-- There is no authentication, reconnect flow, host ownership check, automated test suite, or protection against duplicate/abusive requests.
+- There is no authentication, reconnect flow, cross-process coordination, rate limiting, or production server.
+- Mutating forms use session-bound CSRF tokens and bounded form bodies, but those safeguards do not make the development server suitable for an untrusted network.
 - Game rules and scoring are intentionally minimal.
 
 For a portfolio review, run it on a trusted local network and treat it as a demonstration of Flask routing, sessions, and shared round state.
@@ -42,7 +51,8 @@ For a portfolio review, run it on a trusted local network and treat it as a demo
 
 ```bash
 uv run pytest -q
-uv run ruff check sabotageGame.py tests scripts/release_guard.py
+uv run ruff format --check sabotageGame.py sabotage_game tests scripts
+uv run ruff check sabotageGame.py sabotage_game tests scripts
 uv run pip-audit
 uv run python scripts/release_guard.py
 uv build

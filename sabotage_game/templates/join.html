@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Join Hidden Saboteur{% endblock %}
+{% block nav %}<a class="nav-link" href="{{ url_for('home') }}">Home</a>{% endblock %}
+{% block content %}
+<section class="content-grid">
+    <div>
+        <h1>Enter your player name.</h1>
+        <p>You are joining room <strong>{{ game_code }}</strong>. Your role stays hidden until the game starts.</p>
+    </div>
+    <form class="panel form-stack" action="{{ url_for('join_game_post', game_code=game_code) }}" method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+        <div>
+            <label for="player_name">Player name</label>
+            <input id="player_name" type="text" name="player_name" maxlength="40" placeholder="Gaurav" required>
+        </div>
+        <button type="submit" class="primary">Join Room</button>
+    </form>
+</section>
+{% endblock %}

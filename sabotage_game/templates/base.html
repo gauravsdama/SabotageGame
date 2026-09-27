@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    {% if auto_refresh %}<meta http-equiv="refresh" content="5">{% endif %}
+    <title>{% block title %}Hidden Saboteur{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <main class="shell">
+        <header class="topbar">
+            <a class="brand" href="{{ url_for('home') }}">
+                <span class="brand-mark">HS</span>
+                <span>Hidden Saboteur</span>
+            </a>
+            {% block nav %}{% endblock %}
+        </header>
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

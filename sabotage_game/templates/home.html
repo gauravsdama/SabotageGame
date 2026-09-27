@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block nav %}<span class="pill gold">Local party game</span>{% endblock %}
+{% block content %}
+<section class="hero-grid">
+    <div>
+        <h1>Find the hidden saboteur before the team falls apart.</h1>
+        <p>Create a room, share the code, assign secret roles, run tasks, and vote before the saboteur gets away with the points.</p>
+    </div>
+    <div class="panel form-stack">
+        <form action="{{ url_for('create_game') }}" method="POST" class="form-stack">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <h2>Create room</h2>
+            <p>Start a fresh game and invite players with a short room code.</p>
+            <button type="submit" class="primary">Create Game Room</button>
+        </form>
+        <div class="divider"></div>
+        <form action="{{ url_for('join_game') }}" method="GET" class="form-stack">
+            <h2>Join room</h2>
+            <div>
+                <label for="game_code">Game code</label>
+                <input id="game_code" type="text" name="game_code" maxlength="6" placeholder="A1B2C3" required>
+            </div>
+            <button type="submit">Join Game</button>
+        </form>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Hidden Saboteur Dashboard{% endblock %}
+{% block nav %}<a class="nav-link" href="{{ url_for('lobby', game_code=game.code) }}">Lobby</a>{% endblock %}
+{% block content %}
+<section class="content-grid">
+    <div>
+        <h1>Hello, {{ player.name }}</h1>
+        <p>Room <strong>{{ game.code }}</strong> is your current game. Keep your role private and watch the task order.</p>
+        <div class="status-row">
+            <span class="pill {% if game.started %}green{% else %}gold{% endif %}">{% if game.started %}Game started{% else %}Waiting to start{% endif %}</span>
+            <span class="pill red">{{ game.sabotages }} sabotages</span>
+            {% if game.voting_active %}<span class="pill gold">Voting active</span>{% endif %}
+        </div>
+    </div>
+    <div class="panel stack">
+        {% if game.finished %}
+            <h2>Game ended</h2>
+            <p>The final results are ready.</p>
+            <a class="button primary" href="{{ url_for('display_results', game_code=game.code) }}">View Results</a>
+        {% elif not game.started %}
+            <h2>Waiting for host</h2>
+            <p>The game has not started yet. Return to the lobby while more players join.</p>
+            <a class="button" href="{{ url_for('lobby', game_code=game.code) }}">Return to Lobby</a>
+        {% else %}
+            <h2>Your role</h2>
+            {% if player.has_seen_role %}
+                <span class="pill {% if player.role == 'Saboteur' %}red{% else %}green{% endif %}">{{ player.role }}</span>
+            {% else %}
+                <form method="POST" action="{{ url_for('reveal_role', game_code=game.code) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="primary">Reveal My Role</button>
+                </form>
+            {% endif %}
+
+            {% if game.assigned_order %}
+                <div class="divider"></div>
+                <h2>Task order</h2>
+                <ul>
+                {% for assigned_id in game.assigned_order %}
+                    <li>{{ game.players[assigned_id].name }}{% if loop.index0 == game.task_index %} <span class="pill gold">Current</span>{% endif %}</li>
+                {% endfor %}
+                </ul>
+            {% endif %}
+
+            {% if player.has_seen_role %}
+                <div class="divider"></div>
+                {% if game.voting_active %}
+                    {% if has_voted %}
+                        <h2>Vote recorded</h2><p>Waiting for the rest of the players.</p>
+                    {% else %}
+                        <h2>Vote for the saboteur</h2>
+                        <form class="form-stack" method="POST" action="{{ url_for('cast_vote', game_code=game.code) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <div><label for="vote">Choose a player</label><select id="vote" name="vote" required>{% for pid, candidate in game.players.items() %}<option value="{{ pid }}">{{ candidate.name }}</option>{% endfor %}</select></div>
+                            <button type="submit" class="primary">Submit Vote</button>
+                        </form>
+                    {% endif %}
+                {% elif game.task_index < game.num_tasks %}
+                    {% set current_player = game.assigned_order[game.task_index] %}
+                    {% if player_id == current_player %}
+                        <h2>Your task turn</h2>
+                        <form class="action-row" method="POST" action="{{ url_for('do_task', game_code=game.code) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" name="action" value="complete" class="primary">Complete Task</button>
+                            {% if player.role == 'Saboteur' %}<button type="submit" name="action" value="sabotage" class="danger">Sabotage Task</button>{% endif %}
+                        </form>
+                    {% else %}
+                        <h2>Waiting on task</h2><p>{{ game.players[current_player].name }} is handling the current task.</p>
+                    {% endif %}
+                {% endif %}
+            {% endif %}
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

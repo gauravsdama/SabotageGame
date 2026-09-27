@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Hidden Saboteur Lobby{% endblock %}
+{% block nav %}<a class="nav-link" href="{{ url_for('player_dashboard') }}">My Dashboard</a>{% endblock %}
+{% block content %}
+<section class="content-grid">
+    <div>
+        <h1>Room {{ game.code }}</h1>
+        <p>Share the room code, wait for players, then start once everyone is ready.</p>
+        <div class="code-card" aria-label="Game code"><strong>{{ game.code }}</strong></div>
+    </div>
+    <div class="panel">
+        <div class="status-row">
+            <span class="pill gold">Waiting</span>
+            <span class="pill">{{ game.players|length }} players</span>
+        </div>
+        <h2>Players</h2>
+        {% if game.players %}
+        <ul>{% for player in game.players.values() %}<li>{{ player.name }}</li>{% endfor %}</ul>
+        {% else %}<p>No players have joined yet.</p>{% endif %}
+        {% if is_host %}
+        <div class="divider"></div>
+        <form method="POST" action="{{ url_for('start_game', game_code=game.code) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="primary">Start Game</button>
+        </form>
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

@@ -15,10 +15,11 @@ browser sessions on one computer or a trusted LAN. Gaurav Dama built the Flask
 prototype and its in-memory round flow: create, join, host start, hidden roles,
 assigned task turns, final voting, and results.
 
-The runtime now records the room host, prevents non-host starts and late joins,
-uses unpredictable player IDs and collision-checked room codes, finalizes only
-inside the last vote POST, and reads the result from server state rather than a
-query-string claim.
+The runtime records the room host, prevents non-host starts and late joins,
+uses unpredictable player IDs and collision-checked room codes, and owns each
+round through one explicit phase. Locked POST transitions reject malformed,
+unauthorized, and repeated actions; the last task starts voting atomically and
+the last vote records the server-owned result.
 
 ## Release surface and privacy
 
@@ -30,6 +31,9 @@ query-string claim.
   metadata are ignored and rejected by the release guard.
 - The server defaults to loopback with debug mode off. LAN binding requires an
   explicit `SABOTAGE_HOST=0.0.0.0` choice.
+- The in-memory store defaults to 64 rooms, 16 players per room, a six-hour
+  active-room lifetime, and a one-hour finished-room lifetime. Mutating forms
+  use session-bound CSRF tokens and a 16 KiB request limit.
 - `docs/product/UI_COPY.md` inventories every static and dynamic UI string and
   defines the real multi-session product boundary.
 
@@ -37,11 +41,11 @@ query-string claim.
 
 ```text
 uv lock --check
-uv run ruff format --check sabotageGame.py tests scripts
-uv run ruff check sabotageGame.py tests scripts
-uv run pytest -q                         # 5 passed
+uv run ruff format --check sabotageGame.py sabotage_game tests scripts
+uv run ruff check sabotageGame.py sabotage_game tests scripts
+uv run pytest -q                         # 9 passed
 uv run pip-audit                         # no known vulnerabilities
-uv run python scripts/release_guard.py   # passed, 18 release files
+uv run python scripts/release_guard.py
 uv build
 uv run python scripts/verify_distribution.py
 ```
@@ -60,9 +64,9 @@ Current screenshots:
 
 ## Remaining boundaries
 
-- There is no persistence, reconnect flow, authentication, CSRF defense,
-  multi-process coordination, abuse protection, or production server. Do not
-  expose this build to the public internet.
+- There is no persistence, reconnect flow, authentication, cross-process
+  coordination, rate limiting, or production server. Do not expose this build
+  to the public internet.
 - The current task mechanics are button-driven placeholders rather than a
   content-rich game. That limitation should remain explicit in any demo.
 - A clean-clone CI run remains an external check after the owner commits the

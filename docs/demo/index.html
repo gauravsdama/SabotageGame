@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Sabotage Game round demo.">
+  <title>Sabotage Game</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="Sabotage Game home">
+        <span class="brand-mark" aria-hidden="true">SG</span>
+        <span>Sabotage Game</span>
+      </a>
+      <button id="reset" class="secondary" type="button">Reset round</button>
+    </header>
+
+    <section class="intro">
+      <h1>Sabotage Game</h1>
+      <p>Play one round as Maya. Choose what to do on your task turn, then vote for the player you think is the saboteur.</p>
+    </section>
+
+    <section class="game-grid">
+      <aside class="room-panel" aria-label="Room state">
+        <div class="room-heading">
+          <div><span>Room</span><strong>K7M4Q2</strong></div>
+          <span id="phase" class="status">Task round</span>
+        </div>
+        <h2>Players</h2>
+        <ol class="players">
+          <li><span>1</span><strong>Maya</strong><small id="maya-state">Current turn</small></li>
+          <li><span>2</span><strong>Jordan</strong><small>Waiting</small></li>
+          <li><span>3</span><strong>Priya</strong><small>Waiting</small></li>
+          <li><span>4</span><strong>Leo</strong><small>Waiting</small></li>
+        </ol>
+      </aside>
+
+      <section class="turn-panel" aria-live="polite">
+        <div id="task-step">
+          <span class="role">Your role: <strong>Saboteur</strong></span>
+          <h2>Your task turn</h2>
+          <p>Completing the task leaves the sabotage score unchanged. Sabotaging adds one point if the final vote misses you.</p>
+          <div class="actions">
+            <button type="button" data-action="complete">Complete task</button>
+            <button type="button" class="danger" data-action="sabotage">Sabotage task</button>
+          </div>
+        </div>
+
+        <form id="vote-step" hidden>
+          <h2>Vote for the saboteur</h2>
+          <label for="vote">Player</label>
+          <select id="vote" name="vote">
+            <option value="maya">Maya</option>
+            <option value="jordan">Jordan</option>
+            <option value="priya">Priya</option>
+            <option value="leo">Leo</option>
+          </select>
+          <button type="submit">Submit vote</button>
+        </form>
+
+        <div id="result-step" hidden>
+          <h2 id="result-title"></h2>
+          <p id="result-copy"></p>
+          <dl class="result-stats">
+            <div><dt>Saboteur</dt><dd>Maya</dd></div>
+            <div><dt>Sabotages</dt><dd id="sabotage-count">0</dd></div>
+            <div><dt>Points</dt><dd id="point-count">0</dd></div>
+          </dl>
+        </div>
+      </section>
+    </section>
+
+    <footer><a href="https://github.com/gauravsdama/SabotageGame">View source</a></footer>
+  </main>
+</body>
+</html>

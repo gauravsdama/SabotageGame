@@ -21,7 +21,20 @@ for archive in archives:
             names = package.getnames()
     else:
         continue
-    required = {"sabotageGame.py", "LICENSE"}
+    required = {
+        "sabotageGame.py",
+        "sabotage_game/domain.py",
+        "sabotage_game/store.py",
+        "sabotage_game/web.py",
+        "sabotage_game/static/style.css",
+        "sabotage_game/templates/base.html",
+        "sabotage_game/templates/dashboard.html",
+        "sabotage_game/templates/home.html",
+        "sabotage_game/templates/join.html",
+        "sabotage_game/templates/lobby.html",
+        "sabotage_game/templates/results.html",
+        "LICENSE",
+    }
     if archive.name.endswith(".tar.gz"):
         required.add("README.md")
     missing = {item for item in required if not any(name.endswith(item) for name in names)}

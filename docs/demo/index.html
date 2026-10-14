@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Sabotage Game round demo.">
+  <meta name="description" content="Sabotage Game room and round demo.">
   <title>Sabotage Game</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="./styles.css">
@@ -16,34 +16,59 @@
         <span class="brand-mark" aria-hidden="true">SG</span>
         <span>Sabotage Game</span>
       </a>
-      <button id="reset" class="secondary" type="button">Reset round</button>
+      <button id="reset" class="secondary" type="button">Reset game</button>
     </header>
 
     <section class="intro">
       <h1>Sabotage Game</h1>
-      <p>Play one round as Maya. Choose what to do on your task turn, then vote for the player you think is the saboteur.</p>
+      <p>Create a room, join another player, reveal your role, take a task turn, and vote.</p>
     </section>
 
-    <section class="game-grid">
+    <section id="setup-step" class="setup-panel">
+      <form id="create-room-form">
+        <h2>Create room</h2>
+        <label for="host-name">Host name</label>
+        <input id="host-name" name="hostName" value="Gaurav" maxlength="24" required>
+        <button type="submit">Create room</button>
+      </form>
+    </section>
+
+    <section id="game-grid" class="game-grid" hidden>
       <aside class="room-panel" aria-label="Room state">
         <div class="room-heading">
-          <div><span>Room</span><strong>K7M4Q2</strong></div>
-          <span id="phase" class="status">Task round</span>
+          <div><span>Room</span><strong id="room-code"></strong></div>
+          <span id="phase" class="status">Lobby</span>
         </div>
         <h2>Players</h2>
-        <ol class="players">
-          <li><span>1</span><strong>Maya</strong><small id="maya-state">Current turn</small></li>
-          <li><span>2</span><strong>Jordan</strong><small>Waiting</small></li>
-          <li><span>3</span><strong>Priya</strong><small>Waiting</small></li>
-          <li><span>4</span><strong>Leo</strong><small>Waiting</small></li>
-        </ol>
+        <ol id="players" class="players"></ol>
       </aside>
 
       <section class="turn-panel" aria-live="polite">
-        <div id="task-step">
+        <div id="lobby-step">
+          <h2>Join room</h2>
+          <form id="join-room-form">
+            <label for="player-name">Player name</label>
+            <input id="player-name" name="playerName" maxlength="24" placeholder="Maya" required>
+            <button type="submit">Join room</button>
+          </form>
+          <button id="start-game" type="button" disabled>Start game</button>
+        </div>
+
+        <div id="role-step" hidden>
+          <h2>Your role</h2>
+          <p id="role-instruction">Reveal your role before taking a turn.</p>
+          <button id="reveal-role" type="button">Reveal my role</button>
+          <div id="revealed-role" hidden>
+            <span class="role">Saboteur</span>
+            <p>You can complete the task or sabotage it before the vote.</p>
+            <button id="begin-task" type="button">Start task turn</button>
+          </div>
+        </div>
+
+        <div id="task-step" hidden>
           <span class="role">Your role: <strong>Saboteur</strong></span>
           <h2>Your task turn</h2>
-          <p>Completing the task leaves the sabotage score unchanged. Sabotaging adds one point if the final vote misses you.</p>
+          <p>Sabotaging adds one point if the final vote misses you.</p>
           <div class="actions">
             <button type="button" data-action="complete">Complete task</button>
             <button type="button" class="danger" data-action="sabotage">Sabotage task</button>
@@ -53,12 +78,7 @@
         <form id="vote-step" hidden>
           <h2>Vote for the saboteur</h2>
           <label for="vote">Player</label>
-          <select id="vote" name="vote">
-            <option value="maya">Maya</option>
-            <option value="jordan">Jordan</option>
-            <option value="priya">Priya</option>
-            <option value="leo">Leo</option>
-          </select>
+          <select id="vote" name="vote"></select>
           <button type="submit">Submit vote</button>
         </form>
 
@@ -66,7 +86,7 @@
           <h2 id="result-title"></h2>
           <p id="result-copy"></p>
           <dl class="result-stats">
-            <div><dt>Saboteur</dt><dd>Maya</dd></div>
+            <div><dt>Saboteur</dt><dd id="saboteur-name"></dd></div>
             <div><dt>Sabotages</dt><dd id="sabotage-count">0</dd></div>
             <div><dt>Points</dt><dd id="point-count">0</dd></div>
           </dl>

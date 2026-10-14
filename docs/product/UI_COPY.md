@@ -6,9 +6,21 @@ must match this inventory exactly.
 
 ## Static portfolio demo
 
-The GitHub Pages demo uses one fixed four-player round to show the task, vote,
-and score transitions from the Flask game. Its visible copy is maintained in
-`docs/demo/index.html` and `docs/demo/app.js`.
+The GitHub Pages demo follows the same create, join, role, task, vote, and result
+sequence as the Flask game. It keeps the round in the current browser and assigns
+the host as the saboteur so every state can be tested without a second session.
+Its visible copy is maintained in `docs/demo/index.html` and `docs/demo/app.js`.
+
+| ID | State / component | Current source text | Location |
+| --- | --- | --- | --- |
+| `demo.heading` | Demo heading | Sabotage Game | `docs/demo/index.html` |
+| `demo.instructions` | Demo scope | Create a room, join another player, reveal your role, take a task turn, and vote. | `docs/demo/index.html` |
+| `demo.create` | Room creation | Create room / Host name / Create room | `docs/demo/index.html` |
+| `demo.join` | Lobby | Join room / Player name / Join room / Start game | `docs/demo/index.html` |
+| `demo.role` | Role reveal | Your role / Reveal my role / Saboteur / Start task turn | `docs/demo/index.html` |
+| `demo.task` | Task turn | Your task turn / Complete task / Sabotage task | `docs/demo/index.html` |
+| `demo.vote` | Voting | Vote for the saboteur / Player / Submit vote | `docs/demo/index.html` |
+| `demo.result` | Result | Saboteur identified. / The saboteur survives. | `docs/demo/app.js` |
 
 ## Shared shell and home
 
